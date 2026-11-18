@@ -48,7 +48,7 @@ jobs:
       - name: Upload site
         uses: actions/upload-pages-artifact@v4
         with:
-          path: lib/caos/tool
+          path: docs
 
       - name: Deploy to GitHub Pages
         id: deployment
