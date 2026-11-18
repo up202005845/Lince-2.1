@@ -42,6 +42,12 @@ jobs:
       - name: Build Lince
         run: sbt fastLinkJS
 
+      - name: Prepare docs folder
+        run: |
+          rm -rf docs
+          mkdir -p docs
+          cp -r lib/caos/tool/* docs/
+
       - name: Configure GitHub Pages
         uses: actions/configure-pages@v5
 
