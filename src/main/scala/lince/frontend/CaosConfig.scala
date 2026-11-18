@@ -14,7 +14,7 @@ import scala.util.Random
 
 /** Object used to configure which analysis appear in the browser */
 object CaosConfig extends Configurator[Simulation]:
-  val name = "Lince 2.0: Simulator of Cyber-Physical Systems as Hybrid Programs"
+  val name = "Lince 2.1: Simulator of Cyber-Physical Systems as Hybrid Programs"
   override val languageName: String = "Input program"
 
   /** Parser, converting a string into a System in Lince 2.0 */
@@ -290,52 +290,111 @@ object CaosConfig extends Configurator[Simulation]:
   //// Documentation below
 
   override val footer: String =
-    """Simple animator of Lince 2.0, meant for cyber physical systems, describing programs with discrete and continuous evolution.
+    """Simple animator of Lince 2.1, meant for cyber physical systems, describing programs with discrete and continuous evolution.
       | Source code available online:
-      | <a target="_blank" href="https://github.com/arcalab/lince-2.0">
-      | https://github.com/arcalab/lince-2.0</a>. Used to illustrate a stochastic extension described in a <a href="https://jose.proenca.org/publication/ppdp-stochastic-lince-2025/">PPDP'25 publication and presentation</a>.
-      | This updated version still includes less features than its predecessor at <a href="http://arcatools.org/lince">http://arcatools.org/lince</a>.""".stripMargin
+      | <a target="_blank" href="https://github.com/up202005845/Lince-2.1">
+      | https://github.com/up202005845/Lince-2.1</a>.his version includes a component-based extension for modelling and simulating interacting hybrid programs, with named components, qualified locations, ownership rules, dependency-aware scheduling, and synchronized continuous evolution.
+      | Source code available at <a href="https://github.com/arcalab/lince-2.0">https://github.com/arcalab/lince-2.0</a>. This updated version still includes fewer features than its predecessor at <a href="http://arcatools.org/lince">http://arcatools.org/lince</a>.""".stripMargin
 
   override val documentation: Documentation = List(
-    languageName -> "More information on the syntax of Lince 2.0" ->
-        // |  b ::= e <= e  |  b && b  |  b || b  |  true  |  false
-      """<p>A program <code>p</code> in Lince 2.0 is given by the following grammar:
+    languageName -> "More information on the syntax of Lince 2.1" ->
+      """<p>An input program <code>P</code> in Lince 2.1 is given by the following grammar:
         |<pre>
-        |  p ::= a  |  skip  |  p p  |  if e [then] p else p  |  while e p  |  { p } 
-        |  a ::= x1'=e, ...,xn'=e for e;  |  x:=e;  |  (@keep)? def x := s;
-        |  e ::= x  |  r  |  true  |  false  |  f(e,...,e)
-        |  s := e  |  [r1,r2,...]
+        ||  P ::= p  |  C { p } ...
+        ||  p ::= a  |  skip  |  p p  |  if e [then] p else p  |  while e p  |  { p }
+        ||  a ::= l1'=e, ...,ln'=e for e;  |  l:=e;  |  (@keep)? def x := s;
+        ||  l ::= x  |  C.x
+        ||  e ::= l  |  r  |  true  |  false  |  f(e,...,e)
+        ||  s ::= e  |  [r1,r2,...]
         |</pre></p>
-        |<p> Where <code>r</code> is a real number, <code>(@keep)?</code> means that <code>@keep</code> is optional, and <code>def x:= s</code> defines a (possibly infinite or empty) stream of numbers or a constant (non-recursive) expression.</p>
-        |<p> Known functions for <code>f</code> include <code>&&</code>, <code>||</code>, <code>==</code>, <code>!=</code>, <code>&lt;</code>, <code>*</code>, <code>/</code>, <code>+</code>, <code>-</code>, <code>^</code>, <code>pow</code>, <code>sqrt</code>, <code>exp</code>, <code>sin</code>, <code>cos</code>, <code>tan</code>, <code>cosh</code>, <code>sinh</code>, <code>tanh</code>, <code>pi</code>, <code>unif</code>, <code>expn</code>, <code>normal</code>, <code>powerlaw</code>.</p>
-        |<p> You can customize your plot by appending to the end of your program, e.g.,
+        |
+        |<p>
+        |Where <code>C</code> is a component name, <code>x</code> is a variable name,
+        |<code>l</code> is a location, and <code>r</code> is a real number.
+        |A location can be local, such as <code>x</code>, or explicitly qualified by a
+        |component, such as <code>A.x</code>.
+        |</p>
+        |
+        |<p>
+        |Inside a named component, local variables are automatically associated with that
+        |component. For example:
         |<pre>
-        |---
+        ||A {
+        ||  x := 1;
+        ||}
+        ||
+        ||B {
+        ||  y := A.x + 1;
+        ||}
+        |</pre>
+        |The locations are interpreted as <code>A.x</code> and <code>B.y</code>.
+        |Components may read locations owned by other components, but assignments and
+        |differential equations may only modify locations owned by the executing component.
+        |</p>
+        |
+        |<p>
+        |When several components contain executable instantaneous behaviour, components
+        |are inspected according to their source order. A component whose next statement
+        |depends on a location that is not yet available is temporarily skipped.
+        |</p>
+        |
+        |<p>
+        |<code>(@keep)?</code> means that <code>@keep</code> is optional, and
+        |<code>def x := s</code> defines a possibly infinite or empty stream of numbers
+        |or a constant non-recursive expression.
+        |</p>
+        |
+        |<p>
+        |Known functions for <code>f</code> include
+        |<code>&&</code>, <code>||</code>, <code>==</code>, <code>!=</code>,
+        |<code>&lt;</code>, <code>*</code>, <code>/</code>, <code>+</code>,
+        |<code>-</code>, <code>^</code>, <code>pow</code>, <code>sqrt</code>,
+        |<code>exp</code>, <code>sin</code>, <code>cos</code>, <code>tan</code>,
+        |<code>cosh</code>, <code>sinh</code>, <code>tanh</code>, <code>pi</code>,
+        |<code>unif</code>, <code>expn</code>, <code>normal</code>,
+        |<code>powerlaw</code>.
+        |</p>
+        |
+        |<p>You can customize your plot by appending to the end of your program, e.g.,
+        |<pre>
+        ||---
         |until 5 // maximum time (default 10)
         |from 0 // starting time (default 0)
         |iterations 10 // maximum times the while loops are unfolded (default 500)
-        |samples 40 // minumum number of points to be sampled when drawing the plot (default 20)
+        |samples 40 // minimum number of points to be sampled when drawing the plot (default 20)
         |rk-samples 20 // number of samples for the Runge-Kutta method (default 100)
-        |seed 0 // seed for the random generator  (every time a random one by default)
-        |vars x.*, y // list of regular expressions to select variables to be displayed (default all)
+        |seed 0 // seed for the random generator (random by default)
+        |vars x.*, y // list of regular expressions selecting variables to display (default all)
         |height 450 // sets the height in px of the graph (default 450)
         |runs 5 // number of plots to draw (default 1, useful for random plots)
-        |portrait x,y; z,w // creates a portrait plot, relating x with y and z with w (deactivated by default)
-        |verbose // shows a marker at every discrete step (does not show by default)
+        |portrait x,y; z,w // creates a portrait plot relating x with y and z with w
+        |verbose // shows a marker at every discrete step
         |</pre>
         |</p>
+        |
         |<h3>Note on stochastic functions</h3>
-        |<p> The functions below are stochastic, and will yield a different value every time they are called. For reproducibility, you can set the "seed" value to fix the internal pseudo-random generator.
-          <ul>
-            <li><code>unif(a,b)</code> - random value from a uniform distribution between <code>a</code> and <code>b</code>;</li>
-            <li><code>unif()</code> - equivalent to <code>unif(0,1)</code></li>
-            <li><code>expn(lambda)</code> - random variable from a negative exponential distribution, using an average frequence of <code>lambda</code> (equivalent to <code>-ln(unif()) / lambda</code>);</li>
-            <li><code>normal(m,s)</code> - random variable from a normal distribution with mean <code>m</code> and standard deviation <code>s, using the Box-Muller method.</code></li>
-            <li><code>powerlaw(alpha,xmin)</code> - random variable from a power law distribution, using a normalisation value <code>alpha > 1</code> and a lower bound <code>xmin</code> for the returned values (equivalent to <code>xmin * unif()^(−1/(alpha−1))</code>).</li>
-          </ul>
+        |<p>
+        |The functions below are stochastic and may yield a different value every time they
+        |are called. For reproducibility, the <code>seed</code> value can be used to fix the
+        |internal pseudo-random generator.
+        |<ul>
+        |  <li><code>unif(a,b)</code> - random value from a uniform distribution between <code>a</code> and <code>b</code>;</li>
+        |  <li><code>unif()</code> - equivalent to <code>unif(0,1)</code>;</li>
+        |  <li><code>expn(lambda)</code> - random variable from a negative exponential distribution using a parameter <code>lambda</code> (equivalent to <code>-ln(unif()) / lambda</code>);</li>
+        |  <li><code>normal(m,s)</code> - random variable from a normal distribution with mean <code>m</code> and standard deviation <code>s</code>, using the Box-Muller method;</li>
+        |  <li><code>powerlaw(alpha,xmin)</code> - random variable from a power-law distribution using <code>alpha &gt; 1</code> and lower bound <code>xmin</code> (equivalent to <code>xmin * unif()^(-1/(alpha-1))</code>).</li>
+        |</ul>
         |</p>
         |""".stripMargin,
-    "Run small-steps" -> "Information on the semantics rules used by Lince" ->
-      "<p>The operational rules, borrowed from a <a href=\"https://jose.proenca.org/publication/ppdp-stochastic-lince-2025/\">PPDP'25 publication</a>, can be found below.</p><img src=\"img/lince-semantics.svg\" style: width=50%;s/>"
+    "Run small-steps" -> "Information on the semantics rules used by Lince 2.1" ->
+        """<p>
+          |The basic operational rules used by Lince are based on the semantics presented in the
+          |<a href="https://jose.proenca.org/publication/ppdp-stochastic-lince-2025/">PPDP'25 publication</a>.
+          |Lince 2.1 extends these rules with concurrent component execution, including
+          |dependency-aware discrete scheduling and synchronized continuous evolution.
+          |The simplified semantics used by the current version can be found below.
+          |</p>
+          |<img src="img/lince-semantics.svg" style="width:50%;"/>
+          |""".stripMargin
 //      "<object class=\"pdf\" data=\"img/lince-semantics.pdf\" width=\"800\" height=\"500\"></object>",
     )
