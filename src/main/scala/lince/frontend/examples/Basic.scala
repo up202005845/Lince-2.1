@@ -139,6 +139,36 @@ object Basic:
     //   -> "Sampling from a powerlaw distribution (or other).",
   )
   val concurrent: List[Example] = List(
+    "TE: 1.2 - Manual Car Controller"
+        -> "v := 0; // Car velocity\np := 0; // Car position\na := 2; // Acceleration - changed by Controller\n\nv' = a, p' = v for 5;\n\na := 0;\nv' = a, p' = v for 5;\n\na := -2;\nv' = a, p' = v for 5;\n---\nuntil 15"
+        ->"Thesis Motivating Example - Car Controller. This example simulates the vehicle and controller in a single hybrid program. The continuous evolution is manually divided whenever the acceleration changes, motivating the later separation into independent components.",
+    "TE: 3.3 - Manual Water Tank Controller"
+        -> "f := 0.5;\n\nh1 := 4; // Tank 1 water height\nh2 := 5; // Tank 2 water height\nh3 := 6; // Tank 3 water height\n\nwhile (true) {\n\n h1' = f, h2' = f, h3' = f until_0.5 h1 >= 10 || h2 >= 10 || h3 >= 10;\n f := -f;\n\n  h1' = f, h2' = f, h3' = f until_0.5 h1 <= 3 || h2 <= 3 || h3 <= 3;\nf := -f;\n}\n---\nuntil 100"
+        -> "Thesis Example - Water Tank Controller. This example simulates three water levels and a shared flow controller inside a single hybrid program. Although the tanks evolve simultaneously, their state and control behaviour are not represented as independent components, which motivates the component-based extension.",
+    "TT: 5.1.2 - Independent Concurrent Components"
+        -> "A { x := 1; }\n\nB { y := 2; }"
+        -> "This test verifies that two named components can execute independently while keeping their state separate through qualified locations.",
+    "TT: 5.1.3 - Cross-Component Interaction"
+        -> "B { y := A.x + 2; }\n\nA { x := 5; }"
+        -> "This test verifies that a component can read state owned by another component and that execution is postponed when the required foreign state is not yet available.",
+    "TT: 5.1.4 - Ownership Enforcement"
+        -> "A { x := 0; }\n\nB { A.x := 2; }"
+        -> "This test verifies that components may read foreign state but cannot assign to or define derivatives of locations owned by another component.",
+    "TT: 5.1.5 - Parallel Continuous Evolution"
+        -> "A {\n x := 0;\n x' = 1 for 2;\n}\n\nB {\n y := 0;\n y' = 1 for 5;\n}"
+        -> "This test verifies that continuous behaviour from different components evolves simultaneously over the same physical time interval.",
+    "TT: 5.1.6 - Interaction Between Discrete and Continuous Behaviour"
+        -> "A {\n x := 0;\n x' = 1 for 2;\n x := 10;\n x' = 2 for 3;\n}\n\nB {\n y := 0;\n y' = 1 for 5;\n}\n"
+        -> "This test verifies that instantaneous behaviour is executed at continuous boundaries before the remaining continuous evolution resumes.",
+    "TT: 5.1.7a - Next-statement dependency"
+        -> "A {\n	x := 1;\n	z := B.y + 1;\n}\n\nB {\n	y := 5;\n}\n"
+        -> "This test verifies that only the dependencies of the next instantaneous statement are considered when deciding whether a component can execute.",
+    "TT: 5.1.7b - Dependency chain"
+        -> "A {\n	x := B.y + 1;\n}\n\nB {\n	y := C.z + 1;\n}\n\nC{\n	z := 5;\n}\n"
+        -> "This test verifies that a chain of dependencies between several components is resolved dynamically as the required locations become available.",
+    "TT: 5.1.7c - Cyclic dependency"
+        -> "A {\n	x := B.y + 1;\n}\n\nB {\n	y := C.z + 1;\n}\n\nC{\n	z := A.x + 2;\n}\n\n"
+        -> "This test verifies that Lince detects and reports unresolved dependencies when no component in a dependency cycle can make progress.",
     "Adaptive CC (IC - no accel)"
       -> "// Adaptive Cruise Control (ACC)\nL { // leader.\n  p:=50; v:= 10;\n  a:= 0;\n  p'= v, v'= a for 50; \n}\nF { // follower \n p:=0; v:=0; \n  while true {\n  // decide to speed up (acc=2) or brake (acc=-2)\n   if (v-8)^2 + 4*(p- L.p +v-9) < 0\n   then p'=v, v'= 2 for 1;\n   else p'=v, v'=-2 for 1;\n }\n}\n----\nuntil 20\nvars L.*, F.*"
       -> "Adaptive Cruise Control example, using concurrent semantics, where the leader can have a fixed constant acceleration.",

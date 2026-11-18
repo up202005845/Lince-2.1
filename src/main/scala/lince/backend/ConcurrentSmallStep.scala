@@ -20,11 +20,11 @@ object ConcurrentSmallStep
 
   case class ConcurrentState(
       progs: Map[String, Program],
+      order: List[String],
       v: Valuation,
       s: Streams,
       t: Double,
-      lp: Int,
-      nextProcess: Int = 0
+      lp: Int
   )
 
   val defaultRKSamples = 100
@@ -39,50 +39,176 @@ object ConcurrentSmallStep
   ): Set[(A, ConcurrentState)] =
     step(st)(using defaultRKSamples).toSet
 
+
+
   /**
-   * Deterministic round-robin selection of the next
-   * instantaneous component.
+   * Collect all locations read by an expression.
+   */
+  private def dependencies(
+      e: Expr
+  ): Set[Location] =
+
+    e match
+      case Expr.Num(_) =>
+        Set.empty
+
+      case Expr.True =>
+        Set.empty
+
+      case Expr.False =>
+        Set.empty
+
+      case Expr.Var(loc) =>
+        Set(loc)
+
+      case Expr.Func(_, es) =>
+        es.flatMap(dependencies).toSet
+  /**
+   * Checks whether every variable required by an expression
+   * already exists in the current state.
+   */
+  private def dependenciesAvailable(
+      e: Expr,
+      st: ConcurrentState
+  ): Boolean =
+
+    dependencies(e).forall { loc =>
+
+      val variableAvailable =
+        st.v.contains(loc)
+
+      val streamAvailable =
+        loc.prog.isEmpty &&
+          st.s.contains(loc.name)
+
+      variableAvailable || streamAvailable
+    }
+
+  /**
+   * Checks whether the next statement of a program is an
+   * executable instantaneous statement.
    *
-   * Differential equations are not selected here because
+   * Continuous statements are deliberately excluded because
    * they are handled together by stepContinuous.
+   */
+  private def instantaneousExecutable(
+      prog: Program,
+      st: ConcurrentState
+  ): Boolean =
+
+    nextWithRest(prog)._1 match
+
+      case Skip =>
+        false
+
+      case EqDiff(_, _) =>
+        false
+
+      case Assign(_, e) =>
+        dependenciesAvailable(e, st)
+
+      case StreamDef(_, _) =>
+        true
+
+      case ITE(b, _, _) =>
+        dependenciesAvailable(b, st)
+
+      case While(b, _) =>
+        dependenciesAvailable(b, st)
+
+      case _ =>
+        false
+  
+
+  /**
+   * Selects the first executable instantaneous component
+   * according to source order.
+   *
+   * Components whose next statement depends on unavailable
+   * state are skipped temporarily.
    */
   private def scheduledProgram(
       st: ConcurrentState
-  ): Option[(Int, String, Program)] =
+  ): Option[(String, Program)] =
 
-    val names = processOrder(st)
+    st.order.iterator
+      .flatMap { name =>
 
-    if names.isEmpty then
-      None
-    else
-      val size = names.size
-      val start =
-        Math.floorMod(st.nextProcess, size)
-
-      (0 until size).iterator
-        .map(offset =>
-          (start + offset) % size
+        st.progs
+          .get(name)
+          .map { prog =>
+            name -> prog
+          }
+      }
+      .find { case (_, prog) =>
+        instantaneousExecutable(
+          prog,
+          st
         )
-        .flatMap { index =>
-          val name = names(index)
+      }
 
-          st.progs
-            .get(name)
-            .map { prog =>
-              (index, name, prog)
-            }
-        }
-        .find { case (_, _, prog) =>
-          nextWithRest(prog)._1 match
-            case Skip =>
-              false
+  private def blockedInstantaneousPrograms(
+      st: ConcurrentState
+  ): List[(String, Set[Location])] =
 
-            case EqDiff(_, _) =>
-              false
+    st.order.flatMap { name =>
 
-            case _ =>
-              true
-        }
+      st.progs.get(name).flatMap { prog =>
+
+        nextWithRest(prog)._1 match
+
+          case Assign(_, e) =>
+            val missing =
+              dependencies(e).filterNot { loc =>
+
+                st.v.contains(loc) ||
+                (
+                  loc.prog.isEmpty &&
+                  st.s.contains(loc.name)
+                )
+              }
+
+            if missing.nonEmpty then
+              Some(name -> missing)
+            else
+              None
+
+          case ITE(b, _, _) =>
+            val missing =
+              dependencies(b).filterNot { loc =>
+
+                st.v.contains(loc) ||
+                (
+                  loc.prog.isEmpty &&
+                  st.s.contains(loc.name)
+                )
+              }
+
+            if missing.nonEmpty then
+              Some(name -> missing)
+            else
+              None
+
+          case While(b, _) =>
+            val missing =
+              dependencies(b).filterNot { loc =>
+
+                st.v.contains(loc) ||
+                (
+                  loc.prog.isEmpty &&
+                  st.s.contains(loc.name)
+                )
+              }
+
+            if missing.nonEmpty then
+              Some(name -> missing)
+            else
+              None
+
+          case _ =>
+            None
+      }
+    }
 
   def step(
       st: ConcurrentState
@@ -93,11 +219,45 @@ object ConcurrentSmallStep
       return None
 
     scheduledProgram(st) match
+
       case Some(_) =>
         stepOne(st)
 
       case None =>
-        stepContinuous(st)
+
+        stepContinuous(st) match
+
+          case some @ Some(_) =>
+            some
+
+          case None =>
+
+            val blocked =
+              blockedInstantaneousPrograms(st)
+
+            if blocked.nonEmpty then
+
+              val details =
+                blocked
+                  .map { case (name, missing) =>
+
+                    val component =
+                      if name.isEmpty then
+                        "main program"
+                      else
+                        s"program $name"
+
+                    s"$component requires ${missing.mkString(", ")}"
+                  }
+                  .mkString("\n")
+
+              sys.error(
+                s"""[Concurrent] Execution cannot progress because of unresolved dependencies:
+                  |$details""".stripMargin
+              )
+
+            else
+              None
 
   /**
    * A currently active continuous evolution.
@@ -313,28 +473,13 @@ object ConcurrentSmallStep
 
     scheduledProgram(st) match
 
-      case Some((index, name, prog)) =>
-
-        val names =
-          processOrder(st)
-
-        val nextIndex =
-          if names.isEmpty then
-            0
-          else
-            (index + 1) % names.size
+      case Some((name, prog)) =>
 
         stepProgram(
           name,
           prog,
           st
         )(using rkSamples)
-          .map { case (action, st2) =>
-            action ->
-              st2.copy(
-                nextProcess = nextIndex
-              )
-          }
 
       case None =>
         None
@@ -433,9 +578,4 @@ object ConcurrentSmallStep
   private def processOrder(
       st: ConcurrentState
   ): List[String] =
-
-    st.progs.keys.toList.sortBy {
-      name =>
-        if name == "" then " "
-        else name
-    }
+    st.order

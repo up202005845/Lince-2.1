@@ -142,7 +142,9 @@ object Parser :
 
     ((((namedBlock.rep ~ (program <* sps).? ~ namedBlock.rep0) ~ (sps *> plotInfo).?).map {
       case (((namedBefore, mainOpt), namedAfter), piOpt) =>
-        val namedList = namedBefore.toList ++ namedAfter.toList
+        val before = namedBefore.toList
+        val after = namedAfter.toList
+        val namedList = before ++ after
         checkDuplicatePrograms(namedList)
         val namedMap: Map[String, Program] = namedList.toMap
 
@@ -150,6 +152,13 @@ object Parser :
           mainOpt match
             case Some(mainProg) => namedMap + ("" -> mainProg)
             case None           => namedMap
+        val order: List[String] =
+          mainOpt match
+            case Some(_) =>
+              before.map(_._1) ++
+                List("") ++
+                after.map(_._1)
+            case None => namedList.map(_._1)
 
         val warnings = validateOwnership(progs)
         if warnings.nonEmpty then
@@ -159,15 +168,16 @@ object Parser :
               .mkString("\n")
           )
         else
-          Simulation(progs, piOpt.getOrElse(PlotInfo.default))
+          Simulation(progs, order, piOpt.getOrElse(PlotInfo.default))
       }).backtrack |
       ((((program <* sps) ~ namedBlock.rep0) ~ (sps *> plotInfo).?).map {
         case ((mainProg, namedAfter), piOpt) =>
           val namedList = namedAfter.toList
           checkDuplicatePrograms(namedList)
           val namedMap: Map[String, Program] = namedList.toMap
+          val order = "" :: namedList.map(_._1)
 
-          Simulation(namedMap + ("" -> mainProg), piOpt.getOrElse(PlotInfo.default))
+          Simulation(namedMap + ("" -> mainProg), order, piOpt.getOrElse(PlotInfo.default))
       }))
 
   /** A program is a command with possible spaces or comments around. */

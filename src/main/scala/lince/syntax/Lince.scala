@@ -47,7 +47,7 @@ object Lince:
 
   ///// Plot configuration ////
 
-  case class Simulation(progs:Map[String, Program], pi:PlotInfo):
+  case class Simulation(progs:Map[String, Program], order: List[String], pi:PlotInfo):
     def state: SmallStep.St =
       val initialStreams = Map("unif" -> RandomStrm( pi.seed + (pi.runs - 1)))
       if progs.size == 1 && progs.contains("")
@@ -65,17 +65,17 @@ object Lince:
         SmallStep.St.Concurrent(
           ConcurrentSmallStep.ConcurrentState(
             progs = progs,
+            order = order,
             v = Map(),
             s = initialStreams,
             t = pi.maxTime,
-            lp = pi.maxLoops,
-            nextProcess = 0
+            lp = pi.maxLoops
           )
         )
 
   object Simulation:
     def apply(prog:Program, pi:PlotInfo): Simulation =
-      Simulation(Map(""->prog), pi)
+      Simulation(Map(""->prog), List(""), pi)
 
   case class PlotInfo( minTime:Double,
                        maxTime:Double,

@@ -103,11 +103,11 @@ object Plot:
         SmallStep.St.Concurrent(
           ConcurrentState(
             progs = cst.progs,
+            order = cst.order,
             v = Map(),
             s = streams,
             t = pinfo.maxTime,
-            lp = pinfo.maxLoops,
-            nextProcess = 0
+            lp = pinfo.maxLoops
           )
         )
 
