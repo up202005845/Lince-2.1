@@ -42,6 +42,14 @@ jobs:
       - name: Build Lince
         run: sbt fastLinkJS
 
+      - name: Find generated Scala.js files
+        run: |
+          echo "=== Generated JS files ==="
+          find target -type f \( -name "*.js" -o -name "*.wasm" \) | sort
+      
+          echo "=== docs files ==="
+          find docs -maxdepth 3 -type f | sort
+
       - name: Prepare docs folder
         run: |
           rm -rf docs
