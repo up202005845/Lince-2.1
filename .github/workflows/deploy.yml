@@ -50,11 +50,10 @@ jobs:
           echo "=== docs files ==="
           find docs -maxdepth 3 -type f | sort
 
-      - name: Prepare docs folder
+      - name: Update generated Scala.js files
         run: |
-          rm -rf docs
-          mkdir -p docs
-          cp -r lib/caos/tool/* docs/
+          mkdir -p docs/js/gen
+          cp -r lib/caos/tool/js/gen/* docs/js/gen/
 
       - name: Configure GitHub Pages
         uses: actions/configure-pages@v5
