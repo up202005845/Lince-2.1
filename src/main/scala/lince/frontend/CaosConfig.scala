@@ -280,11 +280,11 @@ object CaosConfig extends Configurator[Simulation]:
   
   override val toggles: List[Toggle] = List(
     "Basic" -> Basic.toy.map(_.name).toSet -> false,
-    "Scenarios" -> Basic.scenarios.map(_.name).toSet,
-    "Probab." -> Basic.prob.map(_.name).toSet,
+    "Scenarios" -> Basic.scenarios.map(_.name).toSet -> false,
+    "Probab." -> Basic.prob.map(_.name).toSet -> false,
     "Config." -> Basic.configs.map(_.name).toSet -> false,
-    "Independent Comp." -> Basic.concurrent.map(_.name).toSet-> false,
-    "Debug" -> Set("Plot debug", "Plot2trace debug", "Plots JS", "View parsed", "View pretty", "View pre-processed") -> false
+    "Independent Comp." -> Basic.concurrent.map(_.name).toSet,
+    "Debug" -> Set("Plot debug", "Plot2trace debug", "Plots JS", "View parsed", "View pretty", "View pre-processed")
   )
 
   //// Documentation below
